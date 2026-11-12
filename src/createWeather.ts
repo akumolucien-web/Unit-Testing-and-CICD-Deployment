@@ -1,20 +1,8 @@
 import { randomUUID } from "crypto";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { PutCommand } from "@aws-sdk/lib-dynamodb";
+import { client, respond, WeatherEvent } from "./shared";
 
-const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-
-// Minimal shape of the API Gateway event this handler reads.
-interface CreateWeatherEvent {
-  body?: string | null;
-}
-
-const respond = (statusCode: number, message: unknown) => ({
-  statusCode,
-  body: JSON.stringify(message),
-});
-
-export const lambdaHandler = async (event: CreateWeatherEvent) => {
+export const lambdaHandler = async (event: WeatherEvent) => {
   try {
     const { weather, town } = JSON.parse(event.body ?? "{}");
     if (!weather || !town) {

@@ -41,35 +41,90 @@ export class LambdaStack extends Stack {
     );
 
     /*********************************************************
-     * Lambda function that performs the CREATE operation
+     * One Lambda per CRUDL operation, all bundled from src/.
+     * NodejsFunction bundles the TypeScript with esbuild (tsconfig has noEmit,
+     * so lambda.Code.fromAsset("src") would upload .ts files Lambda can't run).
      *********************************************************/
-    // NodejsFunction bundles the TypeScript with esbuild (tsconfig has noEmit,
-    // so lambda.Code.fromAsset("src") would upload .ts files Lambda can't run).
-    const createWeatherLambda: NodejsFunction = new NodejsFunction(
-      this,
-      "CreateWeatherLambdaFunction",
-      {
-        functionName: `${props.stageName}-cdk-typescript-create`,
+    const weatherLambda = (
+      id: string,
+      operation: string,
+      entryFile: string
+    ): NodejsFunction =>
+      new NodejsFunction(this, id, {
+        functionName: `${props.stageName}-cdk-typescript-${operation}`,
         runtime: lambda.Runtime.NODEJS_22_X,
-        entry: path.join(__dirname, "../src/createWeather.ts"),
+        entry: path.join(__dirname, `../src/${entryFile}.ts`),
         handler: "lambdaHandler",
         environment: {
           TABLE_NAME: table.tableName,
           STAGE_NAME: props.stageName,
         },
-      }
+      });
+
+    const createWeatherLambda = weatherLambda(
+      "CreateWeatherLambdaFunction",
+      "create",
+      "createWeather"
+    );
+    const getWeatherLambda = weatherLambda(
+      "GetWeatherLambdaFunction",
+      "get",
+      "getWeather"
+    );
+    const updateWeatherLambda = weatherLambda(
+      "UpdateWeatherLambdaFunction",
+      "update",
+      "updateWeather"
+    );
+    const deleteWeatherLambda = weatherLambda(
+      "DeleteWeatherLambdaFunction",
+      "delete",
+      "deleteWeather"
+    );
+    const listWeathersLambda = weatherLambda(
+      "ListWeathersLambdaFunction",
+      "list",
+      "listWeathers"
     );
 
     /*******************************************************************
-     * Give the lambda function permission to write to the table.
+     * Least privilege: readers read, writers write.
      ********************************************************************/
     table.grantWriteData(createWeatherLambda);
+    table.grantReadData(getWeatherLambda);
+    table.grantWriteData(updateWeatherLambda);
+    table.grantWriteData(deleteWeatherLambda);
+    table.grantReadData(listWeathersLambda);
 
     /*********************************************************
-     * API endpoint: POST /create-weather -> createWeatherLambda
+     * API endpoints
+     *   POST   /create-weather
+     *   GET    /get-weather/{id}
+     *   PUT    /update-weather/{id}
+     *   DELETE /delete-weather/{id}
+     *   GET    /list-weathers
      *********************************************************/
     weatherApi.root
       .addResource("create-weather")
       .addMethod("POST", new apigw.LambdaIntegration(createWeatherLambda));
+
+    weatherApi.root
+      .addResource("get-weather")
+      .addResource("{id}")
+      .addMethod("GET", new apigw.LambdaIntegration(getWeatherLambda));
+
+    weatherApi.root
+      .addResource("update-weather")
+      .addResource("{id}")
+      .addMethod("PUT", new apigw.LambdaIntegration(updateWeatherLambda));
+
+    weatherApi.root
+      .addResource("delete-weather")
+      .addResource("{id}")
+      .addMethod("DELETE", new apigw.LambdaIntegration(deleteWeatherLambda));
+
+    weatherApi.root
+      .addResource("list-weathers")
+      .addMethod("GET", new apigw.LambdaIntegration(listWeathersLambda));
   }
 }

@@ -17,7 +17,8 @@ export class WeatherApiStack extends cdk.Stack {
           'akumolucien-web/Unit-Testing-and-CICD-Deployment',
           'main'
         ),
-        commands: ['npm ci', 'npm run build', 'npx cdk synth'],
+        // npm test fails the build, and so blocks the deploy, if any test fails.
+        commands: ['npm ci', 'npm run build', 'npm test', 'npx cdk synth'],
       }),
     });
 
